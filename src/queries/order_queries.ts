@@ -126,6 +126,36 @@ export async function getPendingOrders(db: Database): Promise<any[]> {
   return rows;
 }
 
+export interface OverduePendingOrder {
+  order_id: number;
+  created_at: string;
+  customer_name: string;
+  phone: string | null;
+  days_pending: number;
+}
+
+export async function getOverduePendingOrders(
+  db: Database,
+  minDaysPending: number = 3
+): Promise<OverduePendingOrder[]> {
+  const query = `
+    SELECT
+        o.id as order_id,
+        o.created_at,
+        c.first_name || ' ' || c.last_name as customer_name,
+        c.phone,
+        julianday('now') - julianday(o.created_at) as days_pending
+    FROM orders o
+    JOIN customers c ON o.customer_id = c.id
+    WHERE o.status = 'pending'
+      AND julianday('now') - julianday(o.created_at) > ?
+    ORDER BY o.created_at
+    `;
+
+  const rows = await db.all(query, [minDaysPending]);
+  return rows;
+}
+
 export async function findOrdersByStatus(
   db: Database,
   status: string
